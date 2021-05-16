@@ -12,12 +12,10 @@ import (
 )
 
 var conf string
-var format string
 var logFile string
 
 func init() {
-	flag.StringVar(&format, "format", `$remote_addr [$time_local] "$request" $status $request_length $body_bytes_sent $request_time "$t_size" $read_time $gen_time`, "Log format")
-	flag.StringVar(&logFile, "log", "dummy", "Log file name to read. Read from STDIN if file name is '-'")
+	flag.StringVar(&logFile, "log", "/var/log/access.log", "Log file name to read. Read from STDIN if file name is '-'")
 }
 
 var topPath = map[string]int{}
@@ -38,7 +36,6 @@ func main() {
 	for scanner.Scan() {
 		line := scanner.Text()
 		matches := re.FindAllStringSubmatch(line, -1)
-		//log.Info(matches)
 		if len(matches) == 0 {
 			log.Info("no match: ", line)
 			continue
@@ -66,6 +63,9 @@ func main() {
 		}
 
 		var req = request.New(localTime, int(statusCode), remoteAddr, path, referrer, userAgent)
+		if err := req.Save(); err != nil {
+			//log.WithError(err).Errorf("Saving request failed: %+v", req)
+		}
 
 		//log.WithFields(log.Fields{
 		//	"RemoteAddr": req.RemoteAddr,
@@ -80,7 +80,9 @@ func main() {
 		//}).Info("Matched")
 
 		topPath[req.Path]++
-		uniqueVisitors[req.FingerPrint()]++
+		if !req.IsBot {
+			uniqueVisitors[req.FingerPrint()]++
+		}
 	}
 
 	if err := scanner.Err(); err != nil {
