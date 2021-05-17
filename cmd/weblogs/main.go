@@ -19,7 +19,7 @@ func init() {
 }
 
 var topPath = map[string]int{}
-var uniqueVisitors = map[uint32]int{}
+var uniqueVisitors = map[string]int{}
 
 func main() {
 	flag.Parse()
@@ -31,7 +31,7 @@ func main() {
 	}
 	defer file.Close()
 
-	re := regexp.MustCompile(`([\d\.]+) \- \- \[(\d\d\/\w+\/\d\d\d\d:\d\d:\d\d:\d\d \+\d{4})\] "\w+ (.*) HTTP/\d\.\d" (\d+) \d+ "(.*)" "(.*)"`)
+	re := regexp.MustCompile(`([\d\.]+) \- \- \[(\d\d\/\w+\/\d\d\d\d:\d\d:\d\d:\d\d \+\d{4})\] "(\w+) (.*) HTTP/\d\.\d" (\d+) \d+ "(.*)" "(.*)"`)
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -44,10 +44,11 @@ func main() {
 		var (
 			remoteAddr    = matches[0][1]
 			localTimeStr  = matches[0][2]
-			path          = matches[0][3]
-			statusCodeStr = matches[0][4]
-			referrer      = matches[0][5]
-			userAgent     = matches[0][6]
+			method        = matches[0][3]
+			path          = matches[0][4]
+			statusCodeStr = matches[0][5]
+			referrer      = matches[0][6]
+			userAgent     = matches[0][7]
 		)
 
 		statusCode, err := strconv.ParseInt(statusCodeStr, 10, 32)
@@ -62,9 +63,9 @@ func main() {
 			continue
 		}
 
-		var req = request.New(localTime, int(statusCode), remoteAddr, path, referrer, userAgent)
+		var req = request.New(localTime, int(statusCode), method, remoteAddr, path, referrer, userAgent)
 		if err := req.Save(); err != nil {
-			//log.WithError(err).Errorf("Saving request failed: %+v", req)
+			//	//log.WithError(err).Errorf("Saving request failed: %+v", req)
 		}
 
 		//log.WithFields(log.Fields{
@@ -74,14 +75,14 @@ func main() {
 		//	"Status": req.StatusCode,
 		//	"Referrer": req.Referrer,
 		//	"UserAgent": req.UserAgent,
-		//	"FingerPrint": req.FingerPrint(),
-		//	"IsBot": req.IsBot(),
+		//	"Fingerprint": req.Fingerprint,
 		//	"Time": req.LocalTime,
+		//	"Method": req.Method,
 		//}).Info("Matched")
 
 		topPath[req.Path]++
 		if !req.IsBot {
-			uniqueVisitors[req.FingerPrint()]++
+			uniqueVisitors[req.Fingerprint]++
 		}
 	}
 
